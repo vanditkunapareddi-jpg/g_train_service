@@ -6,7 +6,7 @@ import time
 app = FastAPI()
 
 FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g"
-TARGET_STOP_ID = "G33N"  # Bedford–Nostrand Avs, Church Av–bound
+TARGET_STOP_ID = "G33N"  # Bedford–Nostrand Avs, COURT SQUARE–bound
 
 def get_next_g_trains(max_trains: int = 3):
     # Get realtime feed
@@ -46,13 +46,13 @@ def g_trains():
     try:
         mins = get_next_g_trains()
     except Exception:
-        text = "G to CHURCH: error"
+        text = "G to COURT SQ: error"
         return Response(content=text, media_type="text/plain")
 
     if not mins:
-        text = "G to CHURCH: no trains"
+        text = "G to COURT SQ: no trains"
     else:
-        text = "G to CHURCH: " + " ".join(f"{m}m" for m in mins)
+        text = "G to COURT SQ: " + " ".join(f"{m}m" for m in mins)
 
     return Response(content=text, media_type="text/plain")
 
