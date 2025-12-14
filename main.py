@@ -6,7 +6,7 @@ import time
 app = FastAPI()
 
 FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g"
-TARGET_STOP_ID = "G33N"  # Bedford–Nostrand Avs, COURT SQUARE–bound
+TARGET_STOP_ID = "G33N"  # Bedford–Nostrand Avs, COURT SQ–bound
 
 def get_next_g_trains(max_trains: int = 3):
     # Get realtime feed
@@ -23,15 +23,30 @@ def get_next_g_trains(max_trains: int = 3):
     for entity in feed.entity:
         if not entity.HasField("trip_update"):
             continue
+
         tu = entity.trip_update
 
+        # Skip canceled trips
+        if tu.trip.schedule_relationship == gtfs_realtime_pb2.TripDescriptor.CANCELED:
+            continue
+
         for stu in tu.stop_time_update:
+
+            # Only use the target stop (G33N)
             if stu.stop_id != TARGET_STOP_ID:
                 continue
 
-            # arrival if available, otherwise departure time
+            # Skip skipped/unscheduled stop updates
+            if stu.schedule_relationship == gtfs_realtime_pb2.StopTimeUpdate.SKIPPED:
+                continue
+
+            # Pick arrival OR departure timestamp
             t = stu.arrival.time or stu.departure.time
             if t <= now:
+                continue
+
+            # Ignore trains too far in the future (ghost predictions)
+            if t - now > 60 * 60:  # 1 hour
                 continue
 
             mins = int(round((t - now) / 60))
