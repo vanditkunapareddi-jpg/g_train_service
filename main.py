@@ -6,7 +6,7 @@ import time
 app = FastAPI()
 
 FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g"
-TARGET_STOP_ID = "G33S"  # Bedford–Nostrand Avs, Church Av–bound
+TARGET_STOP_ID = "G33N"  # Bedford–Nostrand Avs, Church Av–bound
 
 def get_next_g_trains(max_trains: int = 3):
     # Get realtime feed
