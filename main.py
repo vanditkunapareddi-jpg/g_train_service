@@ -2,20 +2,39 @@ from fastapi import FastAPI, Response
 from google.transit import gtfs_realtime_pb2
 import requests
 import time
+import logging
 
 app = FastAPI()
 
+# MTA G line realtime feed
 FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g"
-TARGET_STOP_ID = "G33N"  # Bedford–Nostrand Avs, COURT SQ–bound
+
+# Bedford–Nostrand northbound (toward Court Sq)
+TARGET_STOP_ID = "G33N"
+LABEL = "G to COURT SQ"
+
 
 def get_next_g_trains(max_trains: int = 3):
-    # Get realtime feed
-    resp = requests.get(FEED_URL, timeout=10)
-    resp.raise_for_status()
+    """
+    Return a sorted list of arrival times (in minutes) for TARGET_STOP_ID.
+    More defensive about canceled/skipped/ghost trains so we don't show
+    obviously bogus predictions.
+    """
+    try:
+        # Get realtime feed
+        resp = requests.get(FEED_URL, timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        logging.exception("Error fetching MTA feed")
+        return []
 
     # Parse GTFS-realtime protobuf
     feed = gtfs_realtime_pb2.FeedMessage()
-    feed.ParseFromString(resp.content)
+    try:
+        feed.ParseFromString(resp.content)
+    except Exception as e:
+        logging.exception("Error parsing GTFS feed")
+        return []
 
     now = int(time.time())
     arrivals = []
@@ -26,27 +45,38 @@ def get_next_g_trains(max_trains: int = 3):
 
         tu = entity.trip_update
 
-        # Skip canceled trips
-        if tu.trip.schedule_relationship == gtfs_realtime_pb2.TripDescriptor.CANCELED:
-            continue
+        # --- skip canceled trips (if enum exists) ---
+        try:
+            trip_sr = tu.trip.schedule_relationship
+            if trip_sr == gtfs_realtime_pb2.TripDescriptor.CANCELED:
+                continue
+        except AttributeError:
+            # Older bindings might not have the enum constant – ignore
+            pass
 
         for stu in tu.stop_time_update:
-
-            # Only use the target stop (G33N)
             if stu.stop_id != TARGET_STOP_ID:
                 continue
 
-            # Skip skipped/unscheduled stop updates
-            if stu.schedule_relationship == gtfs_realtime_pb2.StopTimeUpdate.SKIPPED:
+            # --- skip skipped stops (if enum exists) ---
+            try:
+                stop_sr = stu.schedule_relationship
+                if stop_sr == gtfs_realtime_pb2.StopTimeUpdate.SKIPPED:
+                    continue
+            except AttributeError:
+                pass
+
+            # pick arrival or departure time
+            t = stu.arrival.time or stu.departure.time
+            if not t:
                 continue
 
-            # Pick arrival OR departure timestamp
-            t = stu.arrival.time or stu.departure.time
+            # ignore past arrivals
             if t <= now:
                 continue
 
-            # Ignore trains too far in the future (ghost predictions)
-            if t - now > 60 * 60:  # 1 hour
+            # ignore trains more than 60 minutes out (likely schedule noise)
+            if t - now > 60 * 60:
                 continue
 
             mins = int(round((t - now) / 60))
@@ -61,13 +91,14 @@ def g_trains():
     try:
         mins = get_next_g_trains()
     except Exception:
-        text = "G to COURT SQ: error"
+        logging.exception("/g-trains failed")
+        text = f"{LABEL}: error"
         return Response(content=text, media_type="text/plain")
 
     if not mins:
-        text = "G to COURT SQ: no trains"
+        text = f"{LABEL}: no trains"
     else:
-        text = "G to COURT SQ: " + " ".join(f"{m}m" for m in mins)
+        text = LABEL + ": " + " ".join(f"{m}m" for m in mins)
 
     return Response(content=text, media_type="text/plain")
 
