@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NextStop — Live NYC Subway Arrivals</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <div class="logo">
+        <span class="bullet" style="--c:#0039A6">N</span>
+        <h1>NextStop</h1>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="arrivals">Live Arrivals</button>
+        <button class="tab" data-tab="builder">Line Builder</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ============ LIVE ARRIVALS ============ -->
+    <section id="tab-arrivals" class="tab-panel active">
+      <h2>Realtime MTA Arrivals</h2>
+      <p class="muted">
+        Pick a feed and a station, choose a direction, and see the next trains.
+      </p>
+
+      <form id="arrivals-form" class="card form-grid">
+        <label>
+          Feed
+          <select id="feed-select" required></select>
+        </label>
+        <label>
+          Station
+          <select id="station-select" required></select>
+        </label>
+        <label>
+          Direction
+          <select id="direction-select">
+            <option value="N">Northbound</option>
+            <option value="S">Southbound</option>
+          </select>
+        </label>
+        <label>
+          Route (optional)
+          <input id="route-filter" type="text" placeholder="G" maxlength="3" />
+        </label>
+        <label>
+          Limit
+          <input id="limit" type="number" min="1" max="20" value="5" />
+        </label>
+        <button type="submit" class="btn primary">Get Arrivals</button>
+      </form>
+
+      <div id="arrivals-result" class="card result">
+        <p class="empty">No arrivals yet — run a search above.</p>
+      </div>
+    </section>
+
+    <!-- ============ LINE BUILDER ============ -->
+    <section id="tab-builder" class="tab-panel">
+      <h2>Design Your Subway Line</h2>
+
+      <div class="builder-grid">
+        <!-- Saved lines -->
+        <aside class="card">
+          <div class="row between">
+            <h3>Saved Lines</h3>
+            <button id="new-line-btn" class="btn small">+ New</button>
+          </div>
+          <ul id="lines-list" class="lines-list">
+            <li class="empty">Loading…</li>
+          </ul>
+        </aside>
+
+        <!-- Editor -->
+        <div class="card editor" id="editor">
+          <div id="editor-empty" class="empty-state">
+            <div class="big">🚇</div>
+            <p>Select a line on the left, or create a new one to start designing.</p>
+          </div>
+
+          <form id="line-form" class="hidden">
+            <div class="line-preview">
+              <span class="bullet" id="preview-bullet" style="--c:#0039A6">?</span>
+              <div>
+                <strong id="preview-name">Line name</strong>
+                <div class="muted" id="preview-id">id</div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                Line name
+                <input id="f-name" type="text" placeholder="Sunset Express" required />
+              </label>
+              <label>
+                Bullet
+                <input id="f-bullet" type="text" maxlength="3" placeholder="S" />
+              </label>
+              <label>
+                Color
+                <input id="f-color" type="color" value="#0039A6" />
+              </label>
+            </div>
+            <label>
+              Description
+              <textarea id="f-description" rows="2" placeholder="What makes this line special?"></textarea>
+            </label>
+
+            <!-- Stations -->
+            <div class="row between">
+              <h3>Stations</h3>
+              <span class="muted" id="station-count">0 stops</span>
+            </div>
+
+            <ol id="stations-list" class="stations-list"></ol>
+
+            <div class="add-station">
+              <input id="new-station-name" type="text" placeholder="New station name" />
+              <input id="new-station-borough" type="text" placeholder="Borough (optional)" />
+              <button type="button" id="add-station-btn" class="btn small">+ Add Stop</button>
+            </div>
+
+            <!-- Route diagram -->
+            <h3>Route Diagram</h3>
+            <div id="route-diagram" class="route-diagram"></div>
+
+            <div class="row gap end">
+              <button type="button" id="export-btn" class="btn">Export JSON</button>
+              <button type="button" id="delete-btn" class="btn danger">Delete</button>
+              <button type="submit" class="btn primary">Save Line</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <p>Made for tinkerers • Realtime data © MTA • <a href="https://github.com/" target="_blank" rel="noopener">View on GitHub</a></p>
+  </footer>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

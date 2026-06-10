@@ -1,0 +1,84 @@
+[
+  {
+    "id": "sunset-express",
+    "name": "Sunset Express",
+    "bullet": "S",
+    "color": "#FF6B35",
+    "description": "A scenic coastal line that only runs at golden hour.",
+    "stations": [
+      {
+        "id": "pier-1",
+        "name": "Pier One",
+        "borough": "Brooklyn",
+        "x": null,
+        "y": null,
+        "notes": null
+      },
+      {
+        "id": "boardwalk",
+        "name": "Boardwalk",
+        "borough": "Brooklyn",
+        "x": null,
+        "y": null,
+        "notes": null
+      },
+      {
+        "id": "lighthouse",
+        "name": "Lighthouse Point",
+        "borough": "Queens",
+        "x": null,
+        "y": null,
+        "notes": null
+      },
+      {
+        "id": "dune-park",
+        "name": "Dune Park",
+        "borough": "Queens",
+        "x": null,
+        "y": null,
+        "notes": null
+      }
+    ]
+  },
+  {
+    "id": "cloud-line",
+    "name": "Cloud Line",
+    "bullet": "C",
+    "color": "#6C5CE7",
+    "description": "An imaginary sky tram connecting floating neighborhoods.",
+    "stations": [
+      {
+        "id": "nimbus",
+        "name": "Nimbus Heights",
+        "borough": null,
+        "x": null,
+        "y": null,
+        "notes": null
+      },
+      {
+        "id": "cumulus",
+        "name": "Cumulus Center",
+        "borough": null,
+        "x": null,
+        "y": null,
+        "notes": null
+      },
+      {
+        "id": "stratus",
+        "name": "Stratus Yard",
+        "borough": null,
+        "x": null,
+        "y": null,
+        "notes": null
+      }
+    ]
+  },
+  {
+    "id": "new-line",
+    "name": "New Line",
+    "bullet": "50",
+    "color": "#00a895",
+    "description": "",
+    "stations": []
+  }
+]

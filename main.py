@@ -1,108 +1,72 @@
+"""NextStop — FastAPI entrypoint.
+
+Run locally with:
+
+    uvicorn main:app --reload
+
+Then open http://127.0.0.1:8000 for the web UI, or http://127.0.0.1:8000/docs
+for the auto-generated API documentation.
+"""
+
+from __future__ import annotations
+
 from fastapi import FastAPI, Response
-from google.transit import gtfs_realtime_pb2
-import requests
-import time
-import logging
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-app = FastAPI()
+from app.config import STATIC_DIR
+from app.mta import FeedError, get_arrivals
+from app.routes import arrivals, custom_lines
 
-# MTA G line realtime feed
-FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g"
+app = FastAPI(
+    title="NextStop",
+    description=(
+        "Realtime NYC subway arrivals for any station — built to drive display "
+        "boards, alerts, and integrations. Also includes a custom line builder."
+    ),
+    version="1.0.0",
+)
 
-# Bedford–Nostrand northbound (toward Court Sq)
-TARGET_STOP_ID = "G33N"
-LABEL = "G to COURT SQ"
-
-
-def get_next_g_trains(max_trains: int = 3):
-    """
-    Return a sorted list of arrival times (in minutes) for TARGET_STOP_ID.
-    More defensive about canceled/skipped/ghost trains so we don't show
-    obviously bogus predictions.
-    """
-    try:
-        # Get realtime feed
-        resp = requests.get(FEED_URL, timeout=10)
-        resp.raise_for_status()
-    except Exception as e:
-        logging.exception("Error fetching MTA feed")
-        return []
-
-    # Parse GTFS-realtime protobuf
-    feed = gtfs_realtime_pb2.FeedMessage()
-    try:
-        feed.ParseFromString(resp.content)
-    except Exception as e:
-        logging.exception("Error parsing GTFS feed")
-        return []
-
-    now = int(time.time())
-    arrivals = []
-
-    for entity in feed.entity:
-        if not entity.HasField("trip_update"):
-            continue
-
-        tu = entity.trip_update
-
-        # --- skip canceled trips (if enum exists) ---
-        try:
-            trip_sr = tu.trip.schedule_relationship
-            if trip_sr == gtfs_realtime_pb2.TripDescriptor.CANCELED:
-                continue
-        except AttributeError:
-            # Older bindings might not have the enum constant – ignore
-            pass
-
-        for stu in tu.stop_time_update:
-            if stu.stop_id != TARGET_STOP_ID:
-                continue
-
-            # --- skip skipped stops (if enum exists) ---
-            try:
-                stop_sr = stu.schedule_relationship
-                if stop_sr == gtfs_realtime_pb2.StopTimeUpdate.SKIPPED:
-                    continue
-            except AttributeError:
-                pass
-
-            # pick arrival or departure time
-            t = stu.arrival.time or stu.departure.time
-            if not t:
-                continue
-
-            # ignore past arrivals
-            if t <= now:
-                continue
-
-            # ignore trains more than 60 minutes out (likely schedule noise)
-            if t - now > 60 * 60:
-                continue
-
-            mins = int(round((t - now) / 60))
-            arrivals.append(mins)
-
-    arrivals.sort()
-    return arrivals[:max_trains]
+# Register the API routers.
+app.include_router(arrivals.router)
+app.include_router(custom_lines.router)
 
 
-@app.get("/g-trains")
-def g_trains():
-    try:
-        mins = get_next_g_trains()
-    except Exception:
-        logging.exception("/g-trains failed")
-        text = f"{LABEL}: error"
-        return Response(content=text, media_type="text/plain")
-
-    if not mins:
-        text = f"{LABEL}: no trains"
-    else:
-        text = LABEL + ": " + " ".join(f"{m}m" for m in mins)
-
-    return Response(content=text, media_type="text/plain")
-
-
-@app.get("/health")
+@app.get("/health", tags=["meta"])
 def health():
+    """Simple liveness check."""
     return {"status": "ok"}
+
+
+# --- Backwards-compatible original endpoint --------------------------------
+# The project started as a single G-train board. We keep this working so older
+# display boards pointed at /g-trains don't break.
+
+
+@app.get("/g-trains", tags=["meta"])
+def g_trains():
+    """Legacy plain-text board: next G trains toward Court Sq from G33N."""
+    label = "G to COURT SQ"
+    try:
+        results = get_arrivals("g", "G33N", route="G", limit=3)
+    except FeedError:
+        return Response(content=f"{label}: error", media_type="text/plain")
+
+    if not results:
+        body = f"{label}: no trains"
+    else:
+        body = f"{label}: " + " ".join(f"{a.minutes}m" for a in results)
+    return Response(content=body, media_type="text/plain")
+
+
+# --- Frontend --------------------------------------------------------------
+# Serve the static web UI. We mount it last so it doesn't shadow /api routes.
+
+if STATIC_DIR.exists():
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        """Serve the single-page web UI."""
+        return FileResponse(STATIC_DIR / "index.html")
+
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
